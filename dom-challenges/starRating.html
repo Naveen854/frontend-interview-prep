@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      .fa {
+        font-size: 40px;
+      }
+
+      .fa-star-o:before {
+        content: "\f006";
+        color: #5f6368;
+        height: 30px;
+      }
+
+      .fa-star:before {
+        content: "\f005";
+        color: #d56e0c;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="star"></div>
+    <div id="display-star"></div>
+    <script>
+      function Star(el, count, callback) {
+        let active = -1;
+        const starContainer = document.querySelector(el);
+
+        for (let i = 1; i <= count; i++) {
+          const star = document.createElement("i");
+          star.classList.add("fa", "fa-star-o");
+          star.dataset.index = i;
+          starContainer.appendChild(star);
+        }
+
+        starContainer.addEventListener("click", onClick);
+        starContainer.addEventListener("mouseover", onMouseOver);
+        starContainer.addEventListener("mouseleave", onMouseLeave);
+
+        function fill(value) {
+          for (i = 0; i < count; i++) {
+            if (i < value) {
+              starContainer.children[i].classList.add("fa-star");
+            } else {
+              starContainer.children[i].classList.remove("fa-star");
+            }
+          }
+        }
+
+        function onClick(e) {
+          active = e.target.dataset.index;
+          fill(active);
+          callback(active);
+        }
+
+        function onMouseOver(e) {
+          const index = e.target.dataset.index;
+          if (!index) return;
+          fill(index);
+        }
+        function onMouseLeave(e) {
+          fill(active);
+        }
+      }
+
+      function getStar(value) {
+        document.getElementById("display-star").innerHTML = value;
+      }
+      new Star("#star", 5, getStar);
+    </script>
+  </body>
+</html>
