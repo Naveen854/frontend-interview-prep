@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Spotter</title>
+    <link rel="stylesheet" href="./index.css" />
+</head>
+<body>
+    <div>
+        Score : <span id="score"></span>
+    </div>
+    <div id="board"></div>
+    <script src="./index.js"></script>
+    <script>
+        function getScore (value) {
+            document.getElementById("score").innerText = value.toString();
+        };
+        new ColorSpotter('#board', 4, getScore)
+    </script>
+</body>
+</html>
