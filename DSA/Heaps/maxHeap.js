@@ -1,8 +1,9 @@
 
 /** 
  * A function to retains the properties of maxHeap
- * @param {Number[]} arr - An array of integers
- * @param {Number} index - starting index of last parent of a leaf
+ * @param {number[]} arr - An array of integers
+ * @param {number} index - starting index of last parent of a leaf
+ * @returns {number[]}
 */
 function maxHeapify(heap,index){
     let left = 2 * index + 1
@@ -23,7 +24,8 @@ function maxHeapify(heap,index){
 
 /** 
  * A function that converts given array into maxHeap array
- * @param {Number[]} arr - An array of integers
+ * @param {number[]} arr - An array of integers
+ * @returns {number[]}
 */
 function convertToMaxHeap(arr){
     let startIndex  = Math.floor(arr.length / 2) - 1
