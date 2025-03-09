@@ -1,0 +1,49 @@
+body{
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    box-sizing: border-box;
+}
+
+#calendar {
+    width: 100%;
+    height: inherit;
+    position: relative;
+    border: 3px solid #ccc;
+    overflow-y:scroll;
+    box-sizing: border-box;
+}
+
+.event{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.divider{
+    border: 1px solid grey;
+}
+/* .event-column {
+    position: relative;
+}
+
+.time-slot {
+    position: relative;
+    height: 30px; /* Adjust for half-hour intervals */
+    /* border-bottom: 1px solid #ddd; */
+/* } */
+
+/* .event {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    border-radius: 4px;
+    color: white;
+    padding: 5px;
+    box-sizing: border-box;
+    border:1px solid white;
+}  */

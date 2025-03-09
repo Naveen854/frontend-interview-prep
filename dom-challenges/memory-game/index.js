@@ -47,38 +47,59 @@ MemoryGame.prototype.onClick = function(e){
     index = parseInt(index,10)
     const currentHistoryLen = this.currentHistory.push(index)
     if(currentHistoryLen !== this.level) return
-    let isPassed = true
-    for(let i=0; i< this.level; i++){
-        if(this.history[i] !== this.currentHistory[i]){
-            isPassed = false
-        }
-    }
-    if(isPassed){
-        this.level++
-        this.score++
-        if(this.score > this.highScore) {
-            this.highScore++;
-            localStorage.setItem(MEMORY_GAME_HIGH_SCORE,this.highScore.toString())
-        }
-    }else{
-        this.score = 0;
-        this.level = 1;
-        this.button.disabled = false
-        this.board.classList.add('shake')
-        function removeShake(){
-            this.board.classList.remove('shake')
-            this.start()
-        }
-        setTimeout(removeShake.bind(this),800)
-    }
-    this.currentHistory = []
-    this.history = []
-    this.start()
-    this.callback(this.score, this.highScore)
+    this.calculateWinner()
 }
 
+MemoryGame.prototype.calculateWinner = function(){
+    const isWinner = this.isUserWonCurrentLevel()
+    if(isWinner){
+        this.upgradeScoreAndLevel()
+        this.clearHistory()
+        this.start()
+    }else{
+        this.reset()
+    }
+    this.callback(this.score,this.highScore)
+}
+
+MemoryGame.prototype.upgradeScoreAndLevel = function(){
+    this.level++
+    this.score++
+    if(this.score > this.highScore) {
+        this.highScore++;
+        localStorage.setItem(MEMORY_GAME_HIGH_SCORE,this.highScore.toString())
+    }
+}
+
+MemoryGame.prototype.clearHistory = function(){
+    this.history = []
+    this.currentHistory = []
+}
+
+MemoryGame.prototype.reset = function(){
+    this.clearHistory()
+    this.score = 0;
+    this.level = 1;
+    this.button.disabled = false
+    this.board.classList.add('shake')
+    function removeShake(){
+        this.board.classList.remove('shake')
+        this.start()
+    }
+    setTimeout(removeShake.bind(this),800)
+}
+
+MemoryGame.prototype.isUserWonCurrentLevel = function(){
+    for(let i=0; i< this.level; i++){
+        if(this.history[i] !== this.currentHistory[i]){
+            return false
+        }
+    }
+    return true
+}
 
 MemoryGame.prototype.start = function(){
+    // disabling button
     this.button.disabled = true
     function turnoffBlink(){
         this.classList.remove('blue')
@@ -88,7 +109,7 @@ MemoryGame.prototype.start = function(){
         const box = this.board.children[randomIndex]
         setTimeout(() => {
             box.classList.add('blue');
-            setTimeout(turnoffBlink.bind(box), 500); // Turn off the blink after 500ms
+            setTimeout(turnoffBlink.bind(box), 500);
         }, i * 600);
         this.history.push(randomIndex)
     }
