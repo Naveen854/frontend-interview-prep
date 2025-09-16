@@ -1,6 +1,8 @@
 function matchPattern(inputLine, pattern) {
   if (pattern.length === 1) {
     return inputLine.includes(pattern);
+  }else if(pattern === "\\d"){
+    return inputLine.split().some(char => char <= "0" && char >= "9");
   } else {
     throw new Error(`Unhandled pattern ${pattern}`);
   }
