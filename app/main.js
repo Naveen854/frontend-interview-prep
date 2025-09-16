@@ -12,20 +12,11 @@ function matchWCharacterClass(inputLine) {
 };
 
 
-
-const isWordInCharacterGroup = (word, groups) => {
-  const isCharacterInGroup = (char) => {
-    return groups.includes(char);
-  }
-  return word.split("").some(isCharacterInGroup);
-}
-
 function matchCharacterGroups(inputLine, pattern) {
   const shouldNegated = pattern[1] === "^";
-  const patternArray = pattern.split("");
-  const groups = shouldNegated ? patternArray.slice(2,-1) : patternArray.slice(1,-1);
-  const result = isWordInCharacterGroup(inputLine, groups);
-  return shouldNegated ? !result : result;
+  const patternSet = new Set(pattern.replace("[","").replace("^","").replace("]","").split(""));
+  const result = inputLine.split("").some(char => shouldNegated ? !patternSet.has(char): patternSet.has(char));
+  return result;
 };
 
 function matchPattern(inputLine, pattern) {
