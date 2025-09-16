@@ -1,9 +1,22 @@
+const isDigitClass = (char) => char >= "0" && char <= "9";
+
+function matchWCharacterClass(inputLine) {
+    return inputLine.split("").every(char => 
+      (char >= "a" && char <= "z") ||
+      (char >= "A" && char <= "Z") ||
+      isDigitClass(char) ||
+      char === "_"
+    );
+  }
+
 function matchPattern(inputLine, pattern) {
   if (pattern.length === 1) {
     return inputLine.includes(pattern);
   }else if(pattern === "\\d"){
     console.log("Pattern is \\d");
-    return inputLine.split("").some(char => char >= "0" && char <= "9");
+    return inputLine.split("").some(isDigitClass);
+  }else if(pattern === "\\w"){
+    return matchWCharacterClass(inputLine);
   } else {
     throw new Error(`Unhandled pattern ${pattern}`);
   }
@@ -18,7 +31,6 @@ function main() {
     process.exit(1);
   }
 
-  // You can use print statements as follows for debugging, they'll be visible when running tests.
   console.error("Logs from your program will appear here");
 
   // Uncomment this block to pass the first stage
@@ -28,6 +40,5 @@ function main() {
     process.exit(1);
   }
 }
-
 
 main();
