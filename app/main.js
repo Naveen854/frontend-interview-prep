@@ -1,3 +1,5 @@
+const { group } = require("console");
+
 const isDigitClass = (char) => char >= "0" && char <= "9";
 
 function matchWCharacterClass(inputLine) {
@@ -7,7 +9,24 @@ function matchWCharacterClass(inputLine) {
       isDigitClass(char) ||
       char === "_"
     );
+};
+
+
+
+const isWordInCharacterGroup = (word, groups) => {
+  const isCharacterInGroup = (char) => {
+    return groups.includes(char);
   }
+  return word.split("").some(isCharacterInGroup);
+}
+
+function matchCharacterGroups(inputLine, pattern) {
+  const shouldNegated = pattern[1] === "^";
+  const patternArray = pattern.split("");
+  const groups = shouldNegated ? patternArray.slice(2,-1) : patternArray.slice(1,-1);
+  const result = isWordInCharacterGroup(inputLine, groups);
+  return shouldNegated ? !result : result;
+};
 
 function matchPattern(inputLine, pattern) {
   if (pattern.length === 1) {
@@ -16,7 +35,9 @@ function matchPattern(inputLine, pattern) {
     return inputLine.split("").some(isDigitClass);
   }else if(pattern === "\\w"){
     return matchWCharacterClass(inputLine);
-  } else {
+  }else if(pattern.startsWith("[") && pattern.endsWith("]")){
+    return matchCharacterGroups(inputLine,pattern);
+  }else {
     throw new Error(`Unhandled pattern ${pattern}`);
   }
 }
