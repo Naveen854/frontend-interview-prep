@@ -1,7 +1,7 @@
 const isDigitClass = (char) => char >= "0" && char <= "9";
 
 function matchWCharacterClass(inputLine) {
-    return inputLine.split("").every(char => 
+    return inputLine.split("").some(char => 
       (char >= "a" && char <= "z") ||
       (char >= "A" && char <= "Z") ||
       isDigitClass(char) ||
@@ -13,7 +13,6 @@ function matchPattern(inputLine, pattern) {
   if (pattern.length === 1) {
     return inputLine.includes(pattern);
   }else if(pattern === "\\d"){
-    console.log("Pattern is \\d");
     return inputLine.split("").some(isDigitClass);
   }else if(pattern === "\\w"){
     return matchWCharacterClass(inputLine);
@@ -31,6 +30,9 @@ function main() {
     process.exit(1);
   }
 
+  process.on("exit", (code) => {
+    console.log(`About to exit with code ${code}`);
+  });
   console.error("Logs from your program will appear here");
 
   // Uncomment this block to pass the first stage
