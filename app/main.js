@@ -1,36 +1,138 @@
-const { group } = require("console");
+const isDigit = (char) => char >= "0" && char <= "9";
+const isLowerCase = (char) => char >= "a" && char <= "z";
+const isUpperCase = (char) => char >= "A" && char <= "Z";
 
-const isDigitClass = (char) => char >= "0" && char <= "9";
+const Quantifiers = new Set(["*", "+", "?"]);
 
-function matchWCharacterClass(inputLine) {
-    return inputLine.split("").some(char => 
-      (char >= "a" && char <= "z") ||
-      (char >= "A" && char <= "Z") ||
-      isDigitClass(char) ||
-      char === "_"
-    );
-};
+function isWord(char) {
+  return (
+    isLowerCase(char) || isUpperCase(char) || isDigit(char) || char === "_"
+  );
+}
+
+function matchChar(char, token) {
+  if (char === undefined) return false;
+  if (token.type === "dot") return true;
+  if (token.type === "digit") return isDigit(char);
+  if (token.type === "word") return isWord(char);
+  return char === token.value;
+}
+
+function tokenize(pat) {
+    const tokens = [];
+    let i = 0;
+    let anchorStart = false;
+    let anchorEnd = false;
+
+    if (pat[0] === '^') {
+        anchorStart = true;
+        i++;
+    }
+
+    while (i < pat.length) {
+        let type = 'char';
+        let value = pat[i];
+
+        if (value === '\\') {
+            i++;
+            const next = pat[i];
+            if (next === 'd') type = 'digit';
+            else if (next === 'w') type = 'word';
+            else type = 'char'
+            value = next;
+        } else if (value === '.') {
+            type = 'dot';
+        } else if (value === '$' && i === pat.length - 1) {
+            anchorEnd = true;
+            break;
+        }
+
+        let quantifier = null;
+        if (i + 1 < pat.length && Quantifiers.has(pat[i + 1])) {
+            quantifier = pat[i + 1];
+            i++;
+        }
+
+        tokens.push({ type, value, quantifier });
+        i++;
+    }
+
+    return { tokens, anchorStart, anchorEnd };
+}
 
 
-function matchCharacterGroups(inputLine, pattern) {
-  const shouldNegated = pattern[1] === "^";
-  const patternSet = new Set(pattern.replace("[","").replace("^","").replace("]","").split(""));
-  const result = inputLine.split("").some(char => shouldNegated ? !patternSet.has(char): patternSet.has(char));
-  return result;
-};
+function matchFrom(text, ti, tokens, pi) {
+    // If all tokens are matched, success!
+    if (pi === tokens.length) return true;
 
-function matchPattern(inputLine, pattern) {
-  if (pattern.length === 1) {
-    return inputLine.includes(pattern);
-  }else if(pattern === "\\d"){
-    return inputLine.split("").some(isDigitClass);
-  }else if(pattern === "\\w"){
-    return matchWCharacterClass(inputLine);
-  }else if(pattern.startsWith("[") && pattern.endsWith("]")){
-    return matchCharacterGroups(inputLine,pattern);
-  }else {
-    throw new Error(`Unhandled pattern ${pattern}`);
-  }
+    const token = tokens[pi];
+
+    // 1) If no quantifier, just match single char
+    if (token.quantifier === null) {
+        if (!matchChar(text[ti], token)) return false;
+        return matchFrom(text, ti + 1, tokens, pi + 1);
+    }
+
+    // 2) Quantifier '?': zero or one occurrence
+    if (token.quantifier === '?') {
+        // Try matching zero occurrences: skip this token
+        if (matchFrom(text, ti, tokens, pi + 1)) return true;
+
+        // Try matching one occurrence if current char matches
+        if (matchChar(text[ti], token)) {
+            return matchFrom(text, ti + 1, tokens, pi + 1);
+        }
+
+        // Neither worked, fail
+        return false;
+    }
+
+    // 3) Quantifier '*': zero or more occurrences
+    if (token.quantifier === '*') {
+        let i = ti;
+
+        // Try matching as many as possible, then try rest of tokens
+        while (i <= text.length && matchChar(text[i], token)) {
+            // Try to match the rest of pattern after consuming i - ti chars
+            if (matchFrom(text, i, tokens, pi + 1)) return true;
+            i++;
+        }
+
+        // Try zero occurrences (skip token)
+        return matchFrom(text, i, tokens, pi + 1);
+    }
+
+    // 4) Quantifier '+': one or more occurrences
+    if (token.quantifier === '+') {
+        // First character must match at least once
+        if (!matchChar(text[ti], token)) return false;
+
+        let i = ti + 1;
+
+        // Try matching more occurrences (greedy)
+        while (i <= text.length && matchChar(text[i], token)) {
+            if (matchFrom(text, i, tokens, pi + 1)) return true;
+            i++;
+        }
+
+        // Try the rest of the pattern after consuming one or more chars
+        return matchFrom(text, i, tokens, pi + 1);
+    }
+
+    return false;
+}
+
+
+function matches(text, tokens, anchorStart, anchorEnd) {
+    const maxStart = anchorStart ? 1 : text.length - tokens.length + 1;
+
+    for (let start = 0; start < maxStart; start++) {
+        if (matchFrom(text, start, tokens, 0)) {
+            if (anchorEnd && (start + tokens.length !== text.length)) continue;
+            return true;
+        }
+    }
+    return false;
 }
 
 function main() {
@@ -45,10 +147,11 @@ function main() {
   process.on("exit", (code) => {
     console.log(`About to exit with code ${code}`);
   });
-  console.error("Logs from your program will appear here");
+
+  const { tokens, anchorStart, anchorEnd } = tokenize(pattern);
 
   // Uncomment this block to pass the first stage
-  if (matchPattern(inputLine, pattern)) {
+  if (matches(inputLine, tokens, anchorStart, anchorEnd)) {
     process.exit(0);
   } else {
     process.exit(1);
