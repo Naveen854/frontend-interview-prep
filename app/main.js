@@ -23,12 +23,39 @@ function matchChar(char, token) {
   return char === token.value;
 }
 
-function parseAlternationGroups(pattern) {
-  if (!pattern.startsWith('(') || !pattern.endsWith(')')) return pattern; // Not a group
 
-  const inner = pattern.slice(1, -1); // remove ( and )
-  return inner;
+function expandAlternationGroups(pattern) {
+  let start = -1;
+  let end = -1;
+
+  // Step 1: Find the first '(' and its matching ')'
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === '(' && start === -1) {
+      start = i;
+    } else if (pattern[i] === ')' && start !== -1) {
+      end = i;
+      break;
+    }
+  }
+
+  // No group found → return original pattern as single element
+  if (start === -1 || end === -1) return [pattern];
+
+  // Step 2: Extract parts
+  const before = pattern.slice(0, start);
+  const group = pattern.slice(start + 1, end); // exclude '(' and ')'
+  const after = pattern.slice(end + 1);
+
+  // Step 3: Split group by '|'
+  const options = group.split('|');
+
+  // Step 4: Build new patterns by replacing group with each option
+  const results = options.map(opt => before + opt + after);
+
+  return results;
 }
+
+
 
 function tokenizeWithAlternatives(pat) {
   const parts = pat.split('|'); // Split on '|'
@@ -198,8 +225,8 @@ function main() {
   });
 
 
-  pattern = parseAlternationGroups(pattern);
-  const alternatives = tokenizeWithAlternatives(pattern);
+  const patterns = expandAlternationGroups(pattern);
+  const alternatives = patterns.flatMap(tokenizeWithAlternatives);
 
   for (const { tokens, anchorStart, anchorEnd } of alternatives) {
     if (matches(inputLine, tokens, anchorStart, anchorEnd)) {
