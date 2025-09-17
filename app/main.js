@@ -96,7 +96,7 @@ function tokenize(pat) {
 
 function matchFrom(text, ti, tokens, pi) {
     // If all tokens are matched, success!
-    if (pi === tokens.length) return true;
+    if (pi === tokens.length) return ti;
 
     const token = tokens[pi];
 
@@ -160,7 +160,9 @@ function matches(text, tokens, anchorStart, anchorEnd) {
   const startPositions = anchorStart ? [0] : Array.from({ length: text.length + 1 }, (_, i) => i);
 
   for (let start of startPositions) {
-    if (matchFrom(text, start, tokens, 0)) {
+    const end = matchFrom(text, start, tokens, 0);
+    if (end !== false) {
+      if (anchorEnd && end !== text.length) continue; // This enforces $
       return true;
     }
   }
