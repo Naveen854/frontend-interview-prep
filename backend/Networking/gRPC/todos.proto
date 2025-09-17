@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+message Todo {
+    string id = 1;
+    string name = 2;
+    bool completed = 3;
+}
+
+message Empty {}
+
+message TodosList {
+    repeated Todo todos = 1;
+}
+
+message TodoId {
+    string id = 1;
+}
+
+service TodosService {
+    rpc getAll (Empty) returns (TodosList) {};
+    rpc get(TodoId) returns (Todo) {}
+}
