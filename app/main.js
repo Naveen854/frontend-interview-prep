@@ -157,16 +157,17 @@ function matchFrom(text, ti, tokens, pi) {
 
 
 function matches(text, tokens, anchorStart, anchorEnd) {
-    const maxStart = anchorStart ? 1 : text.length - tokens.length + 1;
+  const startPositions = anchorStart ? [0] : Array.from({ length: text.length + 1 }, (_, i) => i);
 
-    for (let start = 0; start < maxStart; start++) {
-        if (matchFrom(text, start, tokens, 0)) {
-            if (anchorEnd && (start + tokens.length !== text.length)) continue;
-            return true;
-        }
+  for (let start of startPositions) {
+    if (matchFrom(text, start, tokens, 0)) {
+      return true;
     }
-    return false;
+  }
+
+  return false;
 }
+
 
 function main() {
   const pattern = process.argv[3];
