@@ -23,6 +23,19 @@ function matchChar(char, token) {
   return char === token.value;
 }
 
+function parseAlternationGroups(pattern) {
+  if (!pattern.startsWith('(') || !pattern.endsWith(')')) return pattern; // Not a group
+
+  const inner = pattern.slice(1, -1); // remove ( and )
+  return inner;
+}
+
+function tokenizeWithAlternatives(pat) {
+  const parts = pat.split('|'); // Split on '|'
+  const alternatives = parts.map(tokenize); // Tokenize each part
+  return alternatives;
+}
+
 function tokenize(pat) {
     const tokens = [];
     let i = 0;
@@ -172,7 +185,7 @@ function matches(text, tokens, anchorStart, anchorEnd) {
 
 
 function main() {
-  const pattern = process.argv[3];
+  let pattern = process.argv[3];
   const inputLine = require("fs").readFileSync(0, "utf-8").trim();
 
   if (process.argv[2] !== "-E") {
@@ -184,14 +197,17 @@ function main() {
     console.log(`About to exit with code ${code}`);
   });
 
-  const { tokens, anchorStart, anchorEnd } = tokenize(pattern);
 
-  // Uncomment this block to pass the first stage
-  if (matches(inputLine, tokens, anchorStart, anchorEnd)) {
-    process.exit(0);
-  } else {
-    process.exit(1);
+  pattern = parseAlternationGroups(pattern);
+  const alternatives = tokenizeWithAlternatives(pattern);
+
+  for (const { tokens, anchorStart, anchorEnd } of alternatives) {
+    if (matches(inputLine, tokens, anchorStart, anchorEnd)) {
+      process.exit(0);
+    }
   }
+
+  process.exit(1);
 }
 
 main();
