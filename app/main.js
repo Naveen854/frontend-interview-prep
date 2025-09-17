@@ -15,6 +15,11 @@ function matchChar(char, token) {
   if (token.type === "dot") return true;
   if (token.type === "digit") return isDigit(char);
   if (token.type === "word") return isWord(char);
+  if (token.type === "charClass") {
+    const { charSet, negate } = token.value;
+    const inSet = charSet.has(char);
+    return negate ? !inSet : inSet;
+  }
   return char === token.value;
 }
 
@@ -33,7 +38,35 @@ function tokenize(pat) {
         let type = 'char';
         let value = pat[i];
 
-        if (value === '\\') {
+        if(value === "["){
+            let j = i + 1;
+            let charSet = new Set();
+            let negate = false;
+
+            if (pat[j] === '^') {
+                negate = true;
+                j++;
+            }
+
+            while (j < pat.length && pat[j] !== ']') {
+                charSet.add(pat[j]);
+                j++;
+            }
+
+            // if (j === pat.length) {
+            //     throw new Error("Unterminated character class");
+            // }
+
+            type = 'charClass';
+            value = { charSet, negate };
+            i = j; // Move i to the closing ']'
+            i++;
+            let quantifier = null;
+            if (i < pat.length && Quantifiers.has(pat[i])) {
+                quantifier = pat[i];
+                i++;
+            }
+        }else if (value === '\\') {
             i++;
             const next = pat[i];
             if (next === 'd') type = 'digit';
