@@ -36,20 +36,43 @@ function expandAlternationGroups(pattern) {
         // Find the matching closing parenthesis
         let depth = 1;
         let j = i + 1;
+        let groupContent = "";
         
         while (j < pat.length && depth > 0) {
-          if (pat[j] === "(") depth++;
-          else if (pat[j] === ")") depth--;
+          if (pat[j] === "(") {
+            depth++;
+          } else if (pat[j] === ")") {
+            depth--;
+          }
+          
+          if (depth > 0) {
+            groupContent += pat[j];
+          }
           j++;
         }
         
         if (depth === 0) {
-          const group = pat.slice(i + 1, j - 1);
-          if (group.includes("|")) {
+          // Check if this specific group (not nested subgroups) contains |
+          // We need to check only at depth 0 within this group
+          let hasDirectAlternation = false;
+          let subDepth = 0;
+          
+          for (let k = 0; k < groupContent.length; k++) {
+            if (groupContent[k] === "(") {
+              subDepth++;
+            } else if (groupContent[k] === ")") {
+              subDepth--;
+            } else if (groupContent[k] === "|" && subDepth === 0) {
+              hasDirectAlternation = true;
+              break;
+            }
+          }
+          
+          if (hasDirectAlternation) {
             // Found an alternation group
             bestStart = i;
             bestEnd = j - 1;
-            bestGroup = group;
+            bestGroup = groupContent;
             break;
           }
         }
@@ -443,7 +466,6 @@ function main() {
     // console.log("Input:", inputLine);
     // console.log("Pattern:", pattern);
     // console.log("Patterns:", patterns);
-    // console.log("Number of alternatives:", alternatives.length);
 
     // Remove the exit event listener
     for (let i = 0; i < alternatives.length; i++) {
