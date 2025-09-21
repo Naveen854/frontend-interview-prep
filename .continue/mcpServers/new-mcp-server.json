@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mcp-shrimp-task-manager": {
+      "command": "npx",
+      "args": ["-y", "@cjo4m06/mcp-shrimp-task-manager"],
+      "env": {
+        "DATA_DIR": "/Users/patranaveen/.shrimp-data"
+      }
+    }
+  }
+} 

@@ -57,7 +57,19 @@ function expandAlternationGroups(pattern) {
   }
 
   const options = group.split("|");
-  const results = options.map((opt) => before + opt + quant + after);
+  
+  // Check if there are backreferences in the pattern
+  const hasBackrefs = pattern.includes("\\1") || pattern.includes("\\2") || pattern.includes("\\3");
+  
+  const results = options.map((opt) => {
+    if (hasBackrefs) {
+      // Preserve capture groups if there are backreferences
+      return before + "(" + opt + ")" + quant + after;
+    } else {
+      // Don't add capture groups if no backreferences
+      return before + opt + quant + after;
+    }
+  });
 
   return results;
 }
@@ -381,6 +393,8 @@ function main() {
     // First expand any alternation groups in the pattern
     const patterns = expandAlternationGroups(pattern);
     const alternatives = patterns.map(tokenize);
+    // console.log("Input:", inputLine);
+    // console.log("Pattern:", pattern);
     // console.log("Patterns:", patterns);
     // console.log("Tokenized alternatives:", alternatives.map(alt => alt.tokens));
 
