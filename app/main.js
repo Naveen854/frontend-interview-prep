@@ -447,38 +447,107 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
     return false;
 }
 
-function main() {
-    const pattern = process.argv[3];
-    const filenames = process.argv.slice(4); // Get all filenames from argv[4] onwards
+function getAllFilesRecursively(dirPath, basePath = dirPath) {
+    const fs = require("fs");
+    const path = require("path");
+    let files = [];
     
-    // Determine if we're reading from stdin or files
-    let filesToProcess;
-    if (filenames.length === 0) {
+    try {
+        const items = fs.readdirSync(dirPath);
+        
+        for (const item of items) {
+            const fullPath = path.join(dirPath, item);
+            const stat = fs.statSync(fullPath);
+            
+            if (stat.isDirectory()) {
+                // Recursively process subdirectory
+                files = files.concat(getAllFilesRecursively(fullPath, basePath));
+            } else if (stat.isFile()) {
+                // Get relative path from the base directory
+                const relativePath = path.relative(basePath, fullPath);
+                files.push({
+                    fullPath: fullPath,
+                    relativePath: relativePath
+                });
+            }
+        }
+    } catch (error) {
+        console.error(`Error reading directory ${dirPath}: ${error.message}`);
+    }
+    
+    return files;
+}
+
+function main() {
+    // Parse command line arguments
+    let isRecursive = false;
+    let patternIndex = 3;
+    
+    // Check for -r flag
+    if (process.argv[2] === "-r" && process.argv[3] === "-E") {
+        isRecursive = true;
+        patternIndex = 4;
+    } else if (process.argv[2] === "-E" && process.argv[3] === "-r") {
+        isRecursive = true;
+        patternIndex = 4;
+    } else if (process.argv[2] !== "-E") {
+        console.log("Expected first argument to be '-E'");
+        process.exit(1);
+    }
+    
+    const pattern = process.argv[patternIndex];
+    const paths = process.argv.slice(patternIndex + 1); // Get all paths from after pattern
+    
+    // Determine if we're reading from stdin, files, or directories
+    let filesToProcess = [];
+    
+    if (paths.length === 0) {
         // Read from stdin
         const inputLine = require("fs").readFileSync(0, "utf-8").trim();
         filesToProcess = [{ name: null, lines: [inputLine] }];
     } else {
-        // Read from files
-        filesToProcess = [];
-        for (const filename of filenames) {
+        // Process each path (file or directory)
+        const fs = require("fs");
+        
+        for (const inputPath of paths) {
             try {
-                const fileContent = require("fs").readFileSync(filename, "utf-8");
-                const lines = fileContent.split('\n');
-                // Remove the last empty line if file ends with newline
-                if (lines.length > 0 && lines[lines.length - 1] === '') {
-                    lines.pop();
+                const stat = fs.statSync(inputPath);
+                
+                if (stat.isDirectory() && isRecursive) {
+                    // Recursively find all files in directory
+                    const foundFiles = getAllFilesRecursively(inputPath);
+                    
+                    for (const fileInfo of foundFiles) {
+                        try {
+                            const fileContent = fs.readFileSync(fileInfo.fullPath, "utf-8");
+                            const lines = fileContent.split('\n');
+                            // Remove the last empty line if file ends with newline
+                            if (lines.length > 0 && lines[lines.length - 1] === '') {
+                                lines.pop();
+                            }
+                            filesToProcess.push({ name: fileInfo.relativePath, lines: lines });
+                        } catch (error) {
+                            console.error(`Error reading file ${fileInfo.fullPath}: ${error.message}`);
+                        }
+                    }
+                } else if (stat.isFile()) {
+                    // Regular file
+                    const fileContent = fs.readFileSync(inputPath, "utf-8");
+                    const lines = fileContent.split('\n');
+                    // Remove the last empty line if file ends with newline
+                    if (lines.length > 0 && lines[lines.length - 1] === '') {
+                        lines.pop();
+                    }
+                    filesToProcess.push({ name: inputPath, lines: lines });
+                } else if (stat.isDirectory() && !isRecursive) {
+                    console.error(`${inputPath} is a directory. Use -r flag for recursive search.`);
+                    process.exit(1);
                 }
-                filesToProcess.push({ name: filename, lines: lines });
             } catch (error) {
-                console.error(`Error reading file ${filename}: ${error.message}`);
+                console.error(`Error accessing ${inputPath}: ${error.message}`);
                 process.exit(1);
             }
         }
-    }
-
-    if (process.argv[2] !== "-E") {
-        console.log("Expected first argument to be '-E'");
-        process.exit(1);
     }
 
     // First expand any alternation groups in the pattern
@@ -494,8 +563,8 @@ function main() {
             for (let i = 0; i < alternatives.length; i++) {
                 const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
                 if (matches(line, tokens, anchorStart, anchorEnd, captures)) {
-                    // Match found - print the line with filename prefix if multiple files
-                    if (file.name && filenames.length > 1) {
+                    // Match found - print the line with filename prefix
+                    if (file.name && (filesToProcess.length > 1 || isRecursive)) {
                         console.log(`${file.name}:${line}`);
                     } else {
                         console.log(line);
