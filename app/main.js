@@ -449,27 +449,31 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
 
 function main() {
     const pattern = process.argv[3];
-    const filename = process.argv[4];
+    const filenames = process.argv.slice(4); // Get all filenames from argv[4] onwards
     
-    // Read input from file or stdin
-    let inputLines;
-    if (filename) {
-        // Read from file
-        try {
-            const fileContent = require("fs").readFileSync(filename, "utf-8");
-            inputLines = fileContent.split('\n');
-            // Remove the last empty line if file ends with newline
-            if (inputLines.length > 0 && inputLines[inputLines.length - 1] === '') {
-                inputLines.pop();
-            }
-        } catch (error) {
-            console.error(`Error reading file ${filename}: ${error.message}`);
-            process.exit(1);
-        }
-    } else {
-        // Read from stdin - treat as single line for backward compatibility
+    // Determine if we're reading from stdin or files
+    let filesToProcess;
+    if (filenames.length === 0) {
+        // Read from stdin
         const inputLine = require("fs").readFileSync(0, "utf-8").trim();
-        inputLines = [inputLine];
+        filesToProcess = [{ name: null, lines: [inputLine] }];
+    } else {
+        // Read from files
+        filesToProcess = [];
+        for (const filename of filenames) {
+            try {
+                const fileContent = require("fs").readFileSync(filename, "utf-8");
+                const lines = fileContent.split('\n');
+                // Remove the last empty line if file ends with newline
+                if (lines.length > 0 && lines[lines.length - 1] === '') {
+                    lines.pop();
+                }
+                filesToProcess.push({ name: filename, lines: lines });
+            } catch (error) {
+                console.error(`Error reading file ${filename}: ${error.message}`);
+                process.exit(1);
+            }
+        }
     }
 
     if (process.argv[2] !== "-E") {
@@ -483,15 +487,22 @@ function main() {
 
     let hasMatches = false;
 
-    // Check each line against all pattern alternatives
-    for (const line of inputLines) {
-        for (let i = 0; i < alternatives.length; i++) {
-            const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
-            if (matches(line, tokens, anchorStart, anchorEnd, captures)) {
-                // Match found - print the line
-                console.log(line);
-                hasMatches = true;
-                break; // Move to next line (don't test other alternatives for this line)
+    // Process each file
+    for (const file of filesToProcess) {
+        // Check each line in the file against all pattern alternatives
+        for (const line of file.lines) {
+            for (let i = 0; i < alternatives.length; i++) {
+                const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
+                if (matches(line, tokens, anchorStart, anchorEnd, captures)) {
+                    // Match found - print the line with filename prefix if multiple files
+                    if (file.name && filenames.length > 1) {
+                        console.log(`${file.name}:${line}`);
+                    } else {
+                        console.log(line);
+                    }
+                    hasMatches = true;
+                    break; // Move to next line (don't test other alternatives for this line)
+                }
             }
         }
     }
