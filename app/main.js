@@ -141,6 +141,46 @@ function tokenize(pat) {
       continue;
     }
 
+    // Handle character classes [...]
+    if (char === "[") {
+      i++; // Skip opening [
+      let negate = false;
+      
+      // Check for negation [^...]
+      if (i < pat.length && pat[i] === "^") {
+        negate = true;
+        i++;
+      }
+      
+      const charSet = new Set();
+      
+      // Parse characters until closing ]
+      while (i < pat.length && pat[i] !== "]") {
+        charSet.add(pat[i]);
+        i++;
+      }
+      
+      if (i >= pat.length) {
+        throw new Error("Unmatched opening bracket");
+      }
+      
+      i++; // Skip closing ]
+      
+      // Check for quantifier
+      let quantifier = null;
+      if (i < pat.length && Quantifiers.has(pat[i])) {
+        quantifier = pat[i];
+        i++;
+      }
+      
+      tokens.push({
+        type: "charClass",
+        value: { charSet, negate },
+        quantifier
+      });
+      continue;
+    }
+
     if (char === ".") {
       i++;
       let quantifier = null;
