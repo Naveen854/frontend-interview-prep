@@ -452,18 +452,24 @@ function main() {
     const filename = process.argv[4];
     
     // Read input from file or stdin
-    let inputLine;
+    let inputLines;
     if (filename) {
         // Read from file
         try {
-            inputLine = require("fs").readFileSync(filename, "utf-8").trim();
+            const fileContent = require("fs").readFileSync(filename, "utf-8");
+            inputLines = fileContent.split('\n');
+            // Remove the last empty line if file ends with newline
+            if (inputLines.length > 0 && inputLines[inputLines.length - 1] === '') {
+                inputLines.pop();
+            }
         } catch (error) {
             console.error(`Error reading file ${filename}: ${error.message}`);
             process.exit(1);
         }
     } else {
-        // Read from stdin
-        inputLine = require("fs").readFileSync(0, "utf-8").trim();
+        // Read from stdin - treat as single line for backward compatibility
+        const inputLine = require("fs").readFileSync(0, "utf-8").trim();
+        inputLines = [inputLine];
     }
 
     if (process.argv[2] !== "-E") {
@@ -474,22 +480,24 @@ function main() {
     // First expand any alternation groups in the pattern
     const patterns = expandAlternationGroups(pattern);
     const alternatives = patterns.map(tokenize);
-    // console.log("Input:", inputLine);
-    // console.log("Pattern:", pattern);
-    // console.log("Patterns:", patterns);
 
-    // Check if any pattern matches
-    for (let i = 0; i < alternatives.length; i++) {
-        const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
-        if (matches(inputLine, tokens, anchorStart, anchorEnd, captures)) {
-            // Match found - print the line and exit with success
-            console.log(inputLine);
-            process.exit(0);
+    let hasMatches = false;
+
+    // Check each line against all pattern alternatives
+    for (const line of inputLines) {
+        for (let i = 0; i < alternatives.length; i++) {
+            const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
+            if (matches(line, tokens, anchorStart, anchorEnd, captures)) {
+                // Match found - print the line
+                console.log(line);
+                hasMatches = true;
+                break; // Move to next line (don't test other alternatives for this line)
+            }
         }
     }
     
-    // No match found - exit with failure
-    process.exit(1);
+    // Exit with appropriate code
+    process.exit(hasMatches ? 0 : 1);
 }
 
 // Remove the event listener and only call main
