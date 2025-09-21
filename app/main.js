@@ -447,7 +447,7 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
     return false;
 }
 
-function getAllFilesRecursively(dirPath, basePath = dirPath) {
+function getAllFilesRecursively(dirPath, originalPath = dirPath) {
     const fs = require("fs");
     const path = require("path");
     let files = [];
@@ -461,13 +461,12 @@ function getAllFilesRecursively(dirPath, basePath = dirPath) {
             
             if (stat.isDirectory()) {
                 // Recursively process subdirectory
-                files = files.concat(getAllFilesRecursively(fullPath, basePath));
+                files = files.concat(getAllFilesRecursively(fullPath, originalPath));
             } else if (stat.isFile()) {
-                // Get relative path from the base directory
-                const relativePath = path.relative(basePath, fullPath);
+                // Keep the path as provided to maintain the expected prefix
                 files.push({
                     fullPath: fullPath,
-                    relativePath: relativePath
+                    relativePath: fullPath
                 });
             }
         }
