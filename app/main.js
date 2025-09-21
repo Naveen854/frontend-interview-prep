@@ -251,20 +251,37 @@ function matchFrom(text, ti, tokens, pi, captures = {}) {
         // Must match at least once
         if (!matchChar(text[ti], token)) return false;
         
-        let i = ti + 1;
-        while (i < text.length && matchChar(text[i], token)) {
-            i++;
+        // Find the maximum possible match length
+        let maxEnd = ti + 1;
+        while (maxEnd < text.length && matchChar(text[maxEnd], token)) {
+            maxEnd++;
         }
-        return matchFrom(text, i, tokens, pi + 1, captures);
+        
+        // Try from longest match to shortest (backtracking)
+        for (let end = maxEnd; end > ti; end--) {
+            const result = matchFrom(text, end, tokens, pi + 1, captures);
+            if (result !== false) {
+                return result;
+            }
+        }
+        return false;
     }
     
     if (token.quantifier === "*") {
-        // Match zero or more times
-        let i = ti;
-        while (i < text.length && matchChar(text[i], token)) {
-            i++;
+        // Find the maximum possible match length
+        let maxEnd = ti;
+        while (maxEnd < text.length && matchChar(text[maxEnd], token)) {
+            maxEnd++;
         }
-        return matchFrom(text, i, tokens, pi + 1, captures);
+        
+        // Try from longest match to shortest (backtracking)
+        for (let end = maxEnd; end >= ti; end--) {
+            const result = matchFrom(text, end, tokens, pi + 1, captures);
+            if (result !== false) {
+                return result;
+            }
+        }
+        return false;
     }
 
     // Handle optional character (?)
