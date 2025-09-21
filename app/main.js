@@ -447,7 +447,7 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
     return false;
 }
 
-function getAllFilesRecursively(dirPath, originalPath = dirPath) {
+function getAllFilesRecursively(dirPath) {
     const fs = require("fs");
     const path = require("path");
     let files = [];
@@ -461,9 +461,9 @@ function getAllFilesRecursively(dirPath, originalPath = dirPath) {
             
             if (stat.isDirectory()) {
                 // Recursively process subdirectory
-                files = files.concat(getAllFilesRecursively(fullPath, originalPath));
+                files = files.concat(getAllFilesRecursively(fullPath));
             } else if (stat.isFile()) {
-                // Keep the path as provided to maintain the expected prefix
+                // Use the constructed path as-is (maintains directory prefix)
                 files.push({
                     fullPath: fullPath,
                     relativePath: fullPath
