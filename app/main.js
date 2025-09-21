@@ -24,54 +24,101 @@ function matchChar(char, token) {
 }
 
 function expandAlternationGroups(pattern) {
-  let start = -1;
-  let end = -1;
+  // Recursively expand alternation groups
+  function expandOnce(pat) {
+    // Find the first alternation group (contains |)
+    let bestStart = -1;
+    let bestEnd = -1;
+    let bestGroup = "";
+    
+    for (let i = 0; i < pat.length; i++) {
+      if (pat[i] === "(") {
+        // Find the matching closing parenthesis
+        let depth = 1;
+        let j = i + 1;
+        
+        while (j < pat.length && depth > 0) {
+          if (pat[j] === "(") depth++;
+          else if (pat[j] === ")") depth--;
+          j++;
+        }
+        
+        if (depth === 0) {
+          const group = pat.slice(i + 1, j - 1);
+          if (group.includes("|")) {
+            // Found an alternation group
+            bestStart = i;
+            bestEnd = j - 1;
+            bestGroup = group;
+            break;
+          }
+        }
+      }
+    }
 
-  // Step 1: Find the first '(' and its matching ')'
-  for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] === "(" && start === -1) {
-      start = i;
-    } else if (pattern[i] === ")" && start !== -1) {
-      end = i;
-      break;
+    if (bestStart === -1 || bestEnd === -1) {
+      return [pat];
+    }
+
+    const before = pat.slice(0, bestStart);
+    const group = bestGroup;
+    let after = pat.slice(bestEnd + 1);
+
+    let quant = "";
+    if (after[0] === "?" || after[0] === "*" || after[0] === "+") {
+      quant = after[0];
+      after = after.slice(1);
+    }
+
+    const options = group.split("|");
+    
+    // Check if there are backreferences in the original pattern
+    const hasBackrefs = pattern.includes("\\1") || pattern.includes("\\2") || pattern.includes("\\3") || pattern.includes("\\4");
+    
+    const results = options.map((opt) => {
+      if (hasBackrefs) {
+        // Preserve capture groups if there are backreferences
+        return before + "(" + opt + ")" + quant + after;
+      } else {
+        // Don't add capture groups if no backreferences
+        return before + opt + quant + after;
+      }
+    });
+
+    return results;
+  }
+
+  // Keep expanding until no more alternations are found
+  let currentPatterns = [pattern];
+  let maxIterations = 10; // Prevent infinite loops
+  
+  while (maxIterations > 0) {
+    maxIterations--;
+    let anyExpanded = false;
+    const newPatterns = [];
+    
+    // console.log(`Expansion iteration ${10 - maxIterations}, current patterns:`, currentPatterns);
+    
+    for (const pat of currentPatterns) {
+      const expandedPat = expandOnce(pat);
+      // console.log(`  Pattern "${pat}" expanded to:`, expandedPat);
+      if (expandedPat.length > 1) {
+        anyExpanded = true;
+        newPatterns.push(...expandedPat);
+      } else {
+        newPatterns.push(pat);
+      }
+    }
+    
+    currentPatterns = newPatterns;
+    // console.log(`  After iteration: anyExpanded=${anyExpanded}, patterns:`, currentPatterns);
+    
+    if (!anyExpanded) {
+      break; // No more expansions possible
     }
   }
 
-  if (start === -1 || end === -1) {
-    return [pattern];
-  }
-
-  const before = pattern.slice(0, start);
-  const group = pattern.slice(start + 1, end);
-  let after = pattern.slice(end + 1);
-
-  // Only expand if there's actually an alternation (contains |)
-  if (!group.includes("|")) {
-    return [pattern];
-  }
-
-  let quant = "";
-  if (after[0] === "?" || after[0] === "*" || after[0] === "+") {
-    quant = after[0];
-    after = after.slice(1);
-  }
-
-  const options = group.split("|");
-  
-  // Check if there are backreferences in the pattern
-  const hasBackrefs = pattern.includes("\\1") || pattern.includes("\\2") || pattern.includes("\\3");
-  
-  const results = options.map((opt) => {
-    if (hasBackrefs) {
-      // Preserve capture groups if there are backreferences
-      return before + "(" + opt + ")" + quant + after;
-    } else {
-      // Don't add capture groups if no backreferences
-      return before + opt + quant + after;
-    }
-  });
-
-  return results;
+  return currentPatterns;
 }
 
 
@@ -396,10 +443,11 @@ function main() {
     // console.log("Input:", inputLine);
     // console.log("Pattern:", pattern);
     // console.log("Patterns:", patterns);
-    // console.log("Tokenized alternatives:", alternatives.map(alt => alt.tokens));
+    // console.log("Number of alternatives:", alternatives.length);
 
     // Remove the exit event listener
-    for (const { tokens, anchorStart, anchorEnd, captures } of alternatives) {
+    for (let i = 0; i < alternatives.length; i++) {
+        const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
         if (matches(inputLine, tokens, anchorStart, anchorEnd, captures)) {
             process.exit(0); // Exit immediately on first match
         }
