@@ -311,7 +311,7 @@ function matchFrom(text, ti, tokens, pi, captures = {}) {
         }
         
         const capturedText = text.slice(startPos, ti);
-        // console.log(`Captured group ${groupNum}: "${capturedText}" (from pos ${startPos} to ${ti})`);
+        console.log(`Captured group ${groupNum}: "${capturedText}" (from pos ${startPos} to ${ti})`);
         
         const newCaptures = { ...captures, [groupNum]: capturedText };
         
@@ -440,10 +440,10 @@ function main() {
     // First expand any alternation groups in the pattern
     const patterns = expandAlternationGroups(pattern);
     const alternatives = patterns.map(tokenize);
-    // console.log("Input:", inputLine);
-    // console.log("Pattern:", pattern);
-    // console.log("Patterns:", patterns);
-    // console.log("Number of alternatives:", alternatives.length);
+    console.log("Input:", inputLine);
+    console.log("Pattern:", pattern);
+    console.log("Patterns:", patterns);
+    console.log("Number of alternatives:", alternatives.length);
 
     // Remove the exit event listener
     for (let i = 0; i < alternatives.length; i++) {
