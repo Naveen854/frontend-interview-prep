@@ -449,11 +449,22 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
 
 function main() {
     const pattern = process.argv[3];
-    const inputLine = require("fs").readFileSync(0, "utf-8").trim();
-
-    process.on("exit", (code) => {
-        console.log("Exiting...",code);
-    });
+    const filename = process.argv[4];
+    
+    // Read input from file or stdin
+    let inputLine;
+    if (filename) {
+        // Read from file
+        try {
+            inputLine = require("fs").readFileSync(filename, "utf-8").trim();
+        } catch (error) {
+            console.error(`Error reading file ${filename}: ${error.message}`);
+            process.exit(1);
+        }
+    } else {
+        // Read from stdin
+        inputLine = require("fs").readFileSync(0, "utf-8").trim();
+    }
 
     if (process.argv[2] !== "-E") {
         console.log("Expected first argument to be '-E'");
@@ -467,13 +478,17 @@ function main() {
     // console.log("Pattern:", pattern);
     // console.log("Patterns:", patterns);
 
-    // Remove the exit event listener
+    // Check if any pattern matches
     for (let i = 0; i < alternatives.length; i++) {
         const { tokens, anchorStart, anchorEnd, captures } = alternatives[i];
         if (matches(inputLine, tokens, anchorStart, anchorEnd, captures)) {
-            process.exit(0); // Exit immediately on first match
+            // Match found - print the line and exit with success
+            console.log(inputLine);
+            process.exit(0);
         }
     }
+    
+    // No match found - exit with failure
     process.exit(1);
 }
 
