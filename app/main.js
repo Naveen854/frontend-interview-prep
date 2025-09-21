@@ -269,17 +269,16 @@ function matchFrom(text, ti, tokens, pi, captures = {}) {
 
     // Handle optional character (?)
     if (token.quantifier === "?") {
-        // Try skipping first (don't consume character)
-        const skipResult = matchFrom(text, ti, tokens, pi + 1, captures);
-        if (skipResult !== false) {
-            return skipResult;
+        // Try matching the character first
+        if (ti < text.length && matchChar(text[ti], token)) {
+            const matchResult = matchFrom(text, ti + 1, tokens, pi + 1, captures);
+            if (matchResult !== false) {
+                return matchResult;
+            }
         }
         
-        // Try matching the character
-        if (matchChar(text[ti], token)) {
-            return matchFrom(text, ti + 1, tokens, pi + 1, captures);
-        }
-        return false;
+        // Try skipping (don't consume character)
+        return matchFrom(text, ti, tokens, pi + 1, captures);
     }
 
     // Regular character match
@@ -294,7 +293,6 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
     const startPositions = anchorStart ? [0] : Array.from({ length: text.length }, (_, i) => i);
 
     for (let start of startPositions) {
-        // console.log(`Trying match from position ${start}`);
         const result = matchFrom(text, start, tokens, 0, captures);
         
         if (result !== false) {
@@ -302,10 +300,8 @@ function matches(text, tokens, anchorStart, anchorEnd, captures) {
             
             // For end anchor, match must consume entire string
             if (anchorEnd && end !== text.length) {
-                // console.log(`End anchor mismatch: matched to ${end} but text length is ${text.length}`);
                 continue;
             }
-            // console.log(`Match found from ${start} to ${end}`);
             return true;
         }
     }
@@ -328,7 +324,8 @@ function main() {
     // First expand any alternation groups in the pattern
     const patterns = expandAlternationGroups(pattern);
     const alternatives = patterns.map(tokenize);
-
+    // console.log("Patterns:", patterns);
+    // console.log("Tokenized alternatives:", alternatives.map(alt => alt.tokens));
 
     // Remove the exit event listener
     for (const { tokens, anchorStart, anchorEnd, captures } of alternatives) {
