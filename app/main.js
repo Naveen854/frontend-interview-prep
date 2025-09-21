@@ -37,11 +37,18 @@ function expandAlternationGroups(pattern) {
     }
   }
 
-  if (start === -1 || end === -1) return [pattern];
+  if (start === -1 || end === -1) {
+    return [pattern];
+  }
 
   const before = pattern.slice(0, start);
   const group = pattern.slice(start + 1, end);
   let after = pattern.slice(end + 1);
+
+  // Only expand if there's actually an alternation (contains |)
+  if (!group.includes("|")) {
+    return [pattern];
+  }
 
   let quant = "";
   if (after[0] === "?" || after[0] === "*" || after[0] === "+") {
@@ -61,8 +68,9 @@ function tokenize(pat) {
   let i = 0;
   let anchorStart = false;
   let anchorEnd = false;
-  let groupCount = 0;
+ 
   const groupStack = [];
+  let groupCounter = 1; // Start numbering groups from 1
 
   if (pat[0] === "^") {
     anchorStart = true;
@@ -115,6 +123,24 @@ function tokenize(pat) {
       continue;
     }
 
+    if(char === "("){
+      const currentGroup = groupCounter++;
+      groupStack.push({ groupNumber: currentGroup, startTokenIndex: tokens.length });
+      tokens.push({ type: "groupStart", groupNumber: currentGroup });
+      i++;
+      continue;
+    }
+
+    if(char === ")"){
+      if (groupStack.length === 0) {
+        throw new Error("Unmatched closing parenthesis");
+      }
+      const group = groupStack.pop();
+      tokens.push({ type: "groupEnd", groupNumber: group.groupNumber });
+      i++;
+      continue;
+    }
+
     if (char === ".") {
       i++;
       let quantifier = null;
@@ -137,121 +163,181 @@ function tokenize(pat) {
     tokens.push({ type: "char", value: char, quantifier });
   }
 
-  return { tokens, anchorStart, anchorEnd };
+  if (groupStack.length > 0) {
+    throw new Error("Unmatched opening parenthesis");
+  }
+
+  return { tokens, anchorStart, anchorEnd, captures: {} };
 }
 
 // Updated matchFrom with capture groups and backref support
 function matchFrom(text, ti, tokens, pi, captures = {}) {
+    // Base case - successfully consumed all tokens
     if (pi === tokens.length) {
-        return ti;
+        return { position: ti, captures };
+    }
+
+    // Base case - ran out of text
+    if (ti >= text.length) {
+        // If we have tokens left, they must all be optional
+        while (pi < tokens.length) {
+            const token = tokens[pi];
+            if (!token || token.quantifier !== "?") {
+                return false;
+            }
+            pi++;
+        }
+        return { position: ti, captures };
     }
 
     const token = tokens[pi];
+    // console.log(`Matching '${text[ti]}' at pos ${ti} against token:`, token);
 
-    // Handle digit with + quantifier specially
-    if (token.type === "digit" && token.quantifier === "+") {
-        if (!isDigit(text[ti])) return false;
+    // Handle capture group start
+    if (token.type === "groupStart") {
+        const groupNum = token.groupNumber;
+        
+        // Mark the start position for this group
+        const newCaptures = { ...captures, [`${groupNum}_start`]: ti };
+        return matchFrom(text, ti, tokens, pi + 1, newCaptures);
+    }
+
+    // Handle capture group end
+    if (token.type === "groupEnd") {
+        const groupNum = token.groupNumber;
+        const startPos = captures[`${groupNum}_start`];
+        
+        if (startPos === undefined) {
+            throw new Error(`Group ${groupNum} end without start`);
+        }
+        
+        const capturedText = text.slice(startPos, ti);
+        // console.log(`Captured group ${groupNum}: "${capturedText}" (from pos ${startPos} to ${ti})`);
+        
+        const newCaptures = { ...captures, [groupNum]: capturedText };
+        
+        // Clean up the start position marker
+        delete newCaptures[`${groupNum}_start`];
+        
+        return matchFrom(text, ti, tokens, pi + 1, newCaptures);
+    }
+
+    // Handle backreference
+    if (token.type === "backref") {
+        const groupNumber = token.group;
+        const captured = captures[groupNumber];
+        
+        // console.log(`Backreference \\${groupNumber}: captured="${captured}", current text="${text.slice(ti, ti + 10)}"`);
+        
+        if (!captured) {
+            // console.log(`Group ${groupNumber} not captured yet`);
+            return false; // Referenced group hasn't been captured yet
+        }
+        
+        // Check if the captured text matches at current position
+        const textToMatch = text.slice(ti, ti + captured.length);
+        // console.log(`Comparing "${textToMatch}" with captured "${captured}"`);
+        
+        if (textToMatch === captured) {
+            // console.log(`Backreference match successful`);
+            return matchFrom(text, ti + captured.length, tokens, pi + 1, captures);
+        }
+        // console.log(`Backreference match failed`);
+        return false;
+    }
+
+    // Handle quantifiers for any token type
+    if (token.quantifier === "+") {
+        // Must match at least once
+        if (!matchChar(text[ti], token)) return false;
+        
         let i = ti + 1;
-        // Consume all consecutive digits
-        while (i < text.length && isDigit(text[i])) {
+        while (i < text.length && matchChar(text[i], token)) {
+            i++;
+        }
+        return matchFrom(text, i, tokens, pi + 1, captures);
+    }
+    
+    if (token.quantifier === "*") {
+        // Match zero or more times
+        let i = ti;
+        while (i < text.length && matchChar(text[i], token)) {
             i++;
         }
         return matchFrom(text, i, tokens, pi + 1, captures);
     }
 
-    if (token.quantifier === null) {
-        if (!matchChar(text[ti], token)) {
-            return false;
-        }
-        return matchFrom(text, ti + 1, tokens, pi + 1, captures);
-    }
-
+    // Handle optional character (?)
     if (token.quantifier === "?") {
-        // Try skipping first
+        // Try skipping first (don't consume character)
         const skipResult = matchFrom(text, ti, tokens, pi + 1, captures);
-        if (skipResult !== false) return skipResult;
+        if (skipResult !== false) {
+            return skipResult;
+        }
         
-        // Try matching once
+        // Try matching the character
         if (matchChar(text[ti], token)) {
             return matchFrom(text, ti + 1, tokens, pi + 1, captures);
         }
         return false;
     }
 
-    if (token.quantifier === "*") {
-      let i = ti;
-      while (i < text.length && matchChar(text[i], token)) {
-        if (matchFrom(text, i, tokens, pi + 1, captures)) return true;
-        i++;
-      }
-      return matchFrom(text, i, tokens, pi + 1, captures);
-    }
-
-    if (token.quantifier === "+") {
-      if (!matchChar(text[ti], token)) return false;
-      let i = ti + 1;
-      while (i < text.length && matchChar(text[i], token)) {
-        if (matchFrom(text, i, tokens, pi + 1, captures)) return true;
-        i++;
-      }
-      return matchFrom(text, i, tokens, pi + 1, captures);
+    // Regular character match
+    if (matchChar(text[ti], token)) {
+        return matchFrom(text, ti + 1, tokens, pi + 1, captures);
     }
 
     return false;
 }
 
-// Other functions like matches, main() stay similar with small changes to call matchFrom with captures
-
-function matches(text, tokens, anchorStart, anchorEnd) {
-  
-    // If start anchored, only try from position 0
-    const startPositions = anchorStart 
-        ? [0] 
-        : Array.from({ length: text.length }, (_, i) => i);
+function matches(text, tokens, anchorStart, anchorEnd, captures) {
+    const startPositions = anchorStart ? [0] : Array.from({ length: text.length }, (_, i) => i);
 
     for (let start of startPositions) {
-        const end = matchFrom(text, start, tokens, 0);
-        if (end !== false) {
-            if (anchorEnd) {
-                if (end === text.length) {
-                    return true;
-                }
+        // console.log(`Trying match from position ${start}`);
+        const result = matchFrom(text, start, tokens, 0, captures);
+        
+        if (result !== false) {
+            const end = result.position || result; // Handle both old and new return formats
+            
+            // For end anchor, match must consume entire string
+            if (anchorEnd && end !== text.length) {
+                // console.log(`End anchor mismatch: matched to ${end} but text length is ${text.length}`);
                 continue;
             }
+            // console.log(`Match found from ${start} to ${end}`);
             return true;
         }
     }
-    
     return false;
 }
 
 function main() {
-  let pattern = process.argv[3];
-  const inputLine = require("fs").readFileSync(0, "utf-8").trim();
+    const pattern = process.argv[3];
+    const inputLine = require("fs").readFileSync(0, "utf-8").trim();
 
-  if (process.argv[2] !== "-E") {
-    console.log("Expected first argument to be '-E'");
-    process.exit(1);
-  }
+    process.on("exit", (code) => {
+        console.log("Exiting...",code);
+    });
 
-  // First expand any alternation groups in the pattern
-  const patterns = expandAlternationGroups(pattern);
-  const alternatives = patterns.map(tokenize);
-
-  process.on("exit",(code)=>{
-    console.log("Process exited with code:", code);
-  })
-
-  for (const { tokens, anchorStart, anchorEnd } of alternatives) {
-    if (matches(inputLine, tokens, anchorStart, anchorEnd)) {
-      process.exit(0);
+    if (process.argv[2] !== "-E") {
+        console.log("Expected first argument to be '-E'");
+        process.exit(1);
     }
-  }
 
- 
+    // First expand any alternation groups in the pattern
+    const patterns = expandAlternationGroups(pattern);
+    const alternatives = patterns.map(tokenize);
 
-  process.exit(1);
+
+    // Remove the exit event listener
+    for (const { tokens, anchorStart, anchorEnd, captures } of alternatives) {
+        if (matches(inputLine, tokens, anchorStart, anchorEnd, captures)) {
+            process.exit(0); // Exit immediately on first match
+        }
+    }
+    process.exit(1);
 }
 
-// Only call main once at the end
+// Remove the event listener and only call main
 main();
